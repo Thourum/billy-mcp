@@ -1,0 +1,60 @@
+{
+  "name": "billy-mcp",
+  "version": "0.3.0",
+  "description": "MCP server for Billy (billy.dk) accounting — connect Claude and other AI assistants to your Danish bookkeeping: invoices, bills, journal entries, trial balance, bank reconciliation. With human-approval write protection.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "billy",
+    "billy.dk",
+    "billysbilling",
+    "accounting",
+    "bookkeeping",
+    "regnskab",
+    "bogføring",
+    "invoicing",
+    "claude",
+    "ai-agent",
+    "danish-accounting",
+    "erp"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "Samuel Asvanyi <samuel@asvanyi.com> (https://www.asvanyi.com)",
+  "homepage": "https://github.com/thourum/billy-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thourum/billy-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thourum/billy-mcp/issues"
+  },
+  "bin": {
+    "billy-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "inspector": "npx @modelcontextprotocol/inspector npx tsx src/index.ts",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0-beta.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,163 @@
+import { cap } from './tools/helpers.js';
+
+type Query = Record<string, string | number | boolean | undefined>;
+
+export class BillyClient {
+  private readonly accessToken: string;
+  private readonly baseUrl: string;
+  private readonly locale?: string;
+  private organizationId?: string;
+
+  constructor() {
+    const token = process.env.BILLY_ACCESS_TOKEN;
+    if (!token) {
+      throw new Error(
+        'Missing Billy access token. Set the BILLY_ACCESS_TOKEN environment variable ' +
+          '(create one at mit.billy.dk -> Settings -> Access tokens).'
+      );
+    }
+    this.accessToken = token;
+    this.baseUrl = (process.env.BILLY_BASE_URL ?? 'https://api.billysbilling.com/v2').replace(/\/$/, '');
+    this.locale = process.env.BILLY_LOCALE;
+    this.organizationId = process.env.BILLY_ORGANIZATION_ID || undefined;
+  }
+
+  async request<T = any>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    path: string,
+    opts: { body?: unknown; query?: Query } = {}
+  ): Promise<T> {
+    const url = new URL(this.baseUrl + (path.startsWith('/') ? path : `/${path}`));
+    for (const [key, value] of Object.entries(opts.query ?? {})) {
+      if (value !== undefined) url.searchParams.set(key, String(value));
+    }
+
+    const headers: Record<string, string> = {
+      'X-Access-Token': this.accessToken,
+      'Content-Type': 'application/json'
+    };
+    if (this.locale) headers['Accept-Language'] = this.locale;
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers,
+        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+      });
+    } catch (err: any) {
+      throw new Error(
+        `Billy API ${method} ${path} network error: ${err.message}${err.cause ? ' (' + String(err.cause) + ')' : ''}`
+      );
+    }
+
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Billy API ${method} ${path} failed with ${res.status}: ${cap(text, 500)}`);
+    }
+    if (!text) return {} as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error(`Billy API ${method} ${path} returned non-JSON response`);
+    }
+  }
+
+  get<T = any>(path: string, query?: Query): Promise<T> {
+    return this.request<T>('GET', path, { query });
+  }
+
+  post<T = any>(path: string, body: unknown): Promise<T> {
+    return this.request<T>('POST', path, { body });
+  }
+
+  put<T = any>(path: string, body: unknown): Promise<T> {
+    return this.request<T>('PUT', path, { body });
+  }
+
+  del<T = any>(path: string): Promise<T> {
+    return this.request<T>('DELETE', path);
+  }
+
+  /**
+   * Uploads raw binary content (Billy file upload: POST /files with X-Filename +
+   * file Content-Type headers and the raw bytes as body — not documented on the
+   * main API page but verified against Billy's api-docs upload recipe).
+   */
+  async postBinary<T = any>(
+    path: string,
+    bytes: Uint8Array,
+    opts: { fileName: string; contentType: string; organizationId?: string }
+  ): Promise<T> {
+    const url = new URL(this.baseUrl + (path.startsWith('/') ? path : `/${path}`));
+    const headers: Record<string, string> = {
+      'X-Access-Token': this.accessToken,
+      'Content-Type': opts.contentType,
+      'X-Filename': opts.fileName,
+      ...(opts.organizationId ? { 'x-organizationid': opts.organizationId } : {})
+    };
+    let res: Response;
+    try {
+      res = await fetch(url, { method: 'POST', headers, body: bytes as unknown as BodyInit });
+    } catch (err: any) {
+      const cause = err?.cause ? ` (${String(err.cause)})` : '';
+      throw new Error(`Billy API POST ${path} network error: ${err?.message ?? String(err)}${cause}`);
+    }
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Billy API POST ${path} failed with ${res.status}: ${cap(text, 500)}`);
+    try {
+      return (text ? JSON.parse(text) : {}) as T;
+    } catch {
+      throw new Error(`Billy API POST ${path} returned non-JSON response`);
+    }
+  }
+
+  /**
+   * Fetches ALL pages of a list endpoint and returns the concatenated records
+   * under `resourceKey`. Use for client-side aggregation (e.g. balances).
+   * `maxRecords` is a hard safety cap (default 20000).
+   */
+  async fetchAll<T = any>(
+    path: string,
+    resourceKey: string,
+    query: Query = {},
+    maxRecords = 20000
+  ): Promise<T[]> {
+    const all: T[] = [];
+    let page = 1;
+    for (;;) {
+      const res = await this.get(path, { ...query, page, pageSize: 1000 });
+      const records: T[] = res?.[resourceKey] ?? [];
+      all.push(...records);
+      if (all.length > maxRecords) {
+        throw new Error(
+          `fetchAll ${path}: exceeded ${maxRecords} records; narrow the query (date range, accountId, ...).`
+        );
+      }
+      const paging = res?.meta?.paging;
+      if (!paging || paging.page >= paging.pageCount || records.length === 0) break;
+      page += 1;
+    }
+    return all;
+  }
+
+  /** Returns the configured organization id, or resolves and caches it from /organizations. */
+  async getOrganizationId(): Promise<string> {
+    if (this.organizationId) return this.organizationId;
+    const res = await this.get<{ organizations: Array<{ id: string; name?: string }> }>('/organizations');
+    const orgs = res.organizations ?? [];
+    if (orgs.length === 0) {
+      throw new Error('Could not resolve organization: /organizations returned no records.');
+    }
+    if (orgs.length > 1) {
+      const ids = orgs.map((o) => (o.name ? `${o.id} (${o.name})` : o.id));
+      throw new Error(
+        'Multiple organizations found for this token. Set BILLY_ORGANIZATION_ID to choose one: ' +
+          ids.join(', ')
+      );
+    }
+    const org = orgs[0];
+    this.organizationId = org.id;
+    return org.id;
+  }
+}
