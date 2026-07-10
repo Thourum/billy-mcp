@@ -14,7 +14,7 @@ import { registerReportingTools } from './tools/reporting.js';
 import { registerScriptTools } from './tools/script.js';
 
 export function createServer(): McpServer {
-  const server = new McpServer({ name: 'billy', version: '0.3.1' });
+  const server = new McpServer({ name: 'billy', version: '0.3.2' });
   const billy = new BillyClient();
 
   registerOrganizationTools(server, billy);
