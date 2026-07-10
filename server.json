@@ -1,0 +1,47 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.thourum/billy-mcp",
+  "description": "Billy (billy.dk) accounting for AI assistants: invoices, bills, journal entries, trial balance, bank reconciliation and attachments — with human-approval write protection.",
+  "repository": {
+    "url": "https://github.com/Thourum/billy-mcp",
+    "source": "github"
+  },
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "billy-mcp",
+      "version": "0.3.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "BILLY_ACCESS_TOKEN",
+          "description": "Billy API access token (create at mit.billy.dk -> Settings -> Access tokens)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "BILLY_WRITE_MODE",
+          "description": "Write protection: read-only, confirm (default, requires elicitation-capable host), or full",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "BILLY_ORGANIZATION_ID",
+          "description": "Billy organization ID (auto-resolved when the token maps to a single company)",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "BILLY_LOCALE",
+          "description": "Response language: en_US, da_DK, fr_FR, nl_NL, or de_DE",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

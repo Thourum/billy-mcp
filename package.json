@@ -1,6 +1,7 @@
 {
   "name": "billy-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
+  "mcpName": "io.github.thourum/billy-mcp",
   "description": "MCP server for Billy (billy.dk) accounting — connect Claude and other AI assistants to your Danish bookkeeping: invoices, bills, journal entries, trial balance, bank reconciliation. With human-approval write protection.",
   "keywords": [
     "mcp",
